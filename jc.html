@@ -1,0 +1,75 @@
+<html>
+<body>
+    <script src="https://cdn.jsdelivr.net/gh/feross/simple-peer/simplepeer.min.js"></script>
+    <center><b>JCord</b> Micro <a id="inst" onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.documentElement.outerHTML)" href="#" download="JCord.html"></a>
+    <input id="field"></input>
+    <button id="enter">Enter</button><button id="con">Share my Stream</button></br>
+    <div id="threads" controls></div> </br>
+    <hr>
+    Chat: <input id="chatinput"></input> <button id="chatenter">Send</button>
+    <div id="chat"></div>
+    </center>
+
+    <script>
+    var field = document.getElementById('field');
+    var chat = document.getElementById('chat');
+    const init = prompt("Type smth if u want to start call")
+    var peer = new SimplePeer({ initiator: init, trickle: false})
+    
+    if (init) {
+        field.value = "Generating call key..."
+    } else {
+        field.value = "Paste friend's call key here"
+    }
+    
+    peer.on('stream', stream => {
+        const el = document.createElement("video")
+        el.setAttribute("controls", "")
+        document.getElementById("threads").appendChild(el)
+        console.log(stream)
+        el.srcObject = stream
+        el.play()
+    })
+    
+    peer.on('signal', signal => {
+        console.log(JSON.stringify(signal))
+        if (signal.type === "answer" || signal.type === "offer") {
+            field.value = JSON.stringify(signal)
+        }
+        if (peer._channelReady) {
+            peer.send("incaps signal|" + JSON.stringify(signal))
+        }
+    })
+    
+    peer.on('connect', () => {
+        field.value = "!!!CONNECTED!!!"
+    })
+    
+    peer.on('data', (data) => {
+        data = new TextDecoder().decode(data)
+        if (data.startsWith("incaps signal|")) {
+            peer.signal(data.split("incaps signal|")[1])
+        }
+        if (data.startsWith("chat msg|")) {
+            chat.innerHTML += data.split("chat msg|")[1]
+        }
+    })
+    document.getElementById('enter').onclick = () => {
+        peer.signal(JSON.parse(field.value))
+    }
+    document.getElementById('chatenter').onclick = () => {
+        peer.send("chat msg|" + chatinput.value + "<hr>");
+        chat.innerHTML += chatinput.value + "<hr>"
+    }
+
+    document.getElementById('con').onclick = () => {
+        navigator.mediaDevices.getUserMedia({
+            audio: prompt("Audio?"),
+            video: prompt("Video?")
+        }).then((stream)=>{peer.addStream(stream)}).catch(() => {})
+    }
+    
+    if (!(navigator.mediaDevices)){document.getElementById('inst').click();alert("Downloading JCord.html");}
+    </script>
+</body>
+<html>
